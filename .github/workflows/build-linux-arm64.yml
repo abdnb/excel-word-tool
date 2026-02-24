@@ -2,54 +2,69 @@ name: Build Linux ARM64 Version
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
 
 jobs:
   build-linux-arm64:
+    # 使用 ARM64 原生 runner（需要付费或使用自托管 runner）
+    # 改用 QEMU 模拟方式
     runs-on: ubuntu-latest
     
     steps:
     - name: 检出代码
       uses: actions/checkout@v4
     
-    - name: 设置 QEMU（用于 ARM64 模拟）
+    - name: 设置 QEMU
       uses: docker/setup-qemu-action@v3
-      with:
-        platforms: arm64
     
     - name: 设置 Docker Buildx
       uses: docker/setup-buildx-action@v3
     
-    - name: 构建 ARM64 版本
+    - name: 创建 Dockerfile
       run: |
-        docker buildx build \
-          --platform linux/arm64 \
-          --load \
-          -t excel-word-arm64 \
-          -f- . << 'EOF'
+        cat > Dockerfile.arm64 << 'EOF'
         FROM --platform=linux/arm64 python:3.10-slim
+        
+        ENV DEBIAN_FRONTEND=noninteractive
         
         RUN apt-get update && apt-get install -y \
             python3-tk \
+            binutils \
             && rm -rf /var/lib/apt/lists/*
         
         WORKDIR /app
+        
         COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        
         COPY gui_app.py .
         COPY build_linux.py .
         COPY icon.ico .
         
-        RUN pip install --no-cache-dir -r requirements.txt
-        RUN python3 build_linux.py
-        RUN chmod +x dist/Excel-Word工具
+        RUN python3 build_linux.py && \
+            chmod +x dist/Excel-Word工具
+        
+        CMD ["/bin/bash"]
         EOF
+    
+    - name: 构建 ARM64 镜像
+      run: |
+        docker buildx build \
+          --platform linux/arm64 \
+          --tag excel-word-arm64:latest \
+          --file Dockerfile.arm64 \
+          --load \
+          .
     
     - name: 提取可执行文件
       run: |
-        docker create --name temp-container excel-word-arm64
-        docker cp temp-container:/app/dist/Excel-Word工具 ./Excel-Word工具-arm64
-        docker rm temp-container
+        docker create --platform linux/arm64 --name temp excel-word-arm64:latest
+        docker cp temp:/app/dist/Excel-Word工具 ./Excel-Word工具-arm64
+        docker rm temp
+    
+    - name: 验证文件
+      run: |
+        ls -lh Excel-Word工具-arm64
+        file Excel-Word工具-arm64 || true
     
     - name: 上传 ARM64 可执行文件
       uses: actions/upload-artifact@v4
@@ -57,8 +72,3 @@ jobs:
         name: Excel-Word工具-Linux-ARM64
         path: Excel-Word工具-arm64
         retention-days: 30
-    
-    - name: 显示文件信息
-      run: |
-        ls -lh Excel-Word工具-arm64
-        file Excel-Word工具-arm64
