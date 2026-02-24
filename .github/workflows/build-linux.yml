@@ -1,0 +1,44 @@
+name: Build Linux Version
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+    
+    - name: 设置 Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: 安装系统依赖
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
+    
+    - name: 安装 Python 依赖
+      run: |
+        pip install -r requirements.txt
+    
+    - name: 打包 Linux 版本
+      run: |
+        python3 build_linux.py
+    
+    - name: 上传可执行文件
+      uses: actions/upload-artifact@v3
+      with:
+        name: Excel-Word工具-Linux
+        path: dist/Excel-Word工具
+        retention-days: 30
+    
+    - name: 显示文件信息
+      run: |
+        ls -lh dist/
+        file dist/Excel-Word工具
