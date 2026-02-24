@@ -11,7 +11,7 @@ jobs:
     
     steps:
     - name: 检出代码
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: 设置 Python
       uses: actions/setup-python@v4
@@ -32,7 +32,7 @@ jobs:
         python3 build_linux.py
     
     - name: 上传可执行文件
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Excel-Word工具-Linux
         path: dist/Excel-Word工具
